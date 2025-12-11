@@ -56,7 +56,7 @@ export function Header() {
                   h-10 w-10 (40px) é um tamanho padrão bom para headers. */}
               <div className="relative h-16 w-16 overflow-hidden">
                 <Image
-                  src="/logo-p.png" // <--- CONFIRA O NOME DO ARQUIVO NA PASTA PUBLIC
+                  src="/Logo-P.png" 
                   alt="Logo Praiastur"
                   fill // Ocupa todo o espaço da div pai (h-10 w-10)
                   className="object-contain" // Garante que o logo não fique esticado/achatado
