@@ -22,7 +22,8 @@ export default function EsqueciSenhaPage() {
     setStatus({ tipo: "", msg: "" });
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const apiUrl =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/";
 
       // 🔴 MUDANÇA AQUI:
       // 1. Usamos 'axios' direto (para não mandar token)
@@ -48,7 +49,7 @@ export default function EsqueciSenhaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 font-sans">
+    <div className="min-h-screen bg-black-100 flex items-center justify-center px-4 font-sans">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border-t-4 border-orange-500 p-8">
         {/* Cabeçalho */}
         <div className="text-center mb-8">

@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);

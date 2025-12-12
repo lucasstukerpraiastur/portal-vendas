@@ -16,7 +16,7 @@ export function middleware(request: NextRequest) {
   const isPublicRoute =
     pathname === "/login" ||
     pathname === "/esqueci-senha" ||
-    pathname === "/redefinir-senha";
+    pathname === "/recuperar-senha";
 
   const isPublicFile = pathname.includes(".");
 
