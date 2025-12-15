@@ -28,6 +28,7 @@ interface Vendedor {
   telefone: string;
   cpf: string;
   id_supervisor: number;
+  ativo: boolean;
 }
 
 export default function AdminVendedoresPage() {
@@ -135,6 +136,23 @@ export default function AdminVendedoresPage() {
     setIdParaReset(null);
     setNomeParaReset("");
     setNovaSenhaReset("");
+  }
+
+  async function handleApagarVendedor(vendedor: Vendedor) {
+    const confirmacao = window.confirm(
+      `Tem certeza que deseja inativar o vendedor ${vendedor.nome_completo}?`
+    );
+
+    if (!confirmacao) return;
+
+    try {
+      await api.delete(`/api/admin/vendedores/${vendedor.id}`);
+      alert("Vendedor inativado com sucesso!");
+      carregarVendedores();
+    } catch (error: any) {
+      console.error("Erro ao apagar vendedor", error);
+      alert(error.response?.data?.error || "Erro ao inativar vendedor.");
+    }
   }
 
   async function handleConfirmarReset() {
@@ -336,7 +354,11 @@ export default function AdminVendedoresPage() {
                     return (
                       <tr
                         key={vend.id}
-                        className="hover:bg-purple-50/30 transition-colors group"
+                        className={`transition-colors group border-b border-gray-100 ${
+                          !vend.ativo
+                            ? "bg-gray-100 text-gray-500"
+                            : "hover:bg-purple-50/30"
+                        }`}
                       >
                         <td className="p-4">
                           <div className="font-medium text-gray-900 flex items-center gap-2">
@@ -357,6 +379,13 @@ export default function AdminVendedoresPage() {
                           <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
                             <Phone className="h-3 w-3 text-gray-400" />{" "}
                             {vend.telefone}
+                          </div>
+                          <div>
+                            {!vend.ativo && (
+                              <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded border border-red-200 uppercase font-bold">
+                                Inativo
+                              </span>
+                            )}
                           </div>
                         </td>
 
@@ -384,8 +413,8 @@ export default function AdminVendedoresPage() {
                               <Lock className="h-4 w-4" />
                             </button>
 
-                            {/* BOTÃO EXCLUIR (VISUAL POR ENQUANTO) */}
                             <button
+                              onClick={() => handleApagarVendedor(vend)}
                               title="Excluir"
                               className="text-gray-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                             >
