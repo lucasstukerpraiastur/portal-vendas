@@ -36,7 +36,7 @@ export function Header() {
       default:
         return {
           icon: <User className="h-4 w-4" />,
-          text: "Vendedor",
+          text: "Consultor",
           bg: "bg-blue-100 text-blue-700 border-blue-200",
         };
     }
