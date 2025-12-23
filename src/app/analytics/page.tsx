@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -13,6 +15,7 @@ import {
   Calendar,
   List,
   LayoutList,
+  Download,
 } from "lucide-react";
 
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -35,6 +38,185 @@ export default function AnalyticsPage() {
     setSelectedSupervisor,
   } = useAnalytics();
 
+  const handleExportPDF = () => {
+    // Dados preliminares
+
+    const supervisorEncontrado = supervisores.find(
+      (s) => String(s.id) === String(selectedSupervisor)
+    );
+    const nomeSupervisor = supervisorEncontrado?.nome || "Geral";
+    const nomeArquivoSafe = nomeSupervisor.replace(/[^a-zA-Z0-9]/g, "_");
+    const dataHoje = new Date().toISOString().split("T")[0];
+    const dataInicio = filtros?.data_inicial
+      ? new Date(filtros.data_inicial).toLocaleDateString("pt-BR")
+      : "Início";
+    const dataFim = filtros?.data_final
+      ? new Date(filtros.data_final).toLocaleDateString("pt-BR")
+      : "Hoje";
+
+    const doc = new jsPDF();
+
+    // --- CABEÇALHO DINÂMICO ---
+    let cursorY = 20; // Posição inicial vertical
+
+    // 1. Título
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Portal de Vendas", 14, cursorY);
+    cursorY += 8; // Desce 8 pontos
+
+    // 2. Data de Geração
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, cursorY);
+    cursorY += 10; // Desce 10 pontos para separar
+
+    // 3. Supervisor (Só imprime e desce a linha SE tiver supervisor selecionado)
+    if (selectedSupervisor) {
+      doc.setTextColor(0); // Preto
+      doc.setFontSize(12);
+      doc.text(`Supervisor: ${nomeSupervisor}`, 14, cursorY);
+      cursorY += 8; // Desce a linha
+    }
+
+    // 4. Período (Agora usa o cursorY, então nunca vai encavalar)
+    doc.setTextColor(0);
+    doc.setFontSize(11);
+    doc.text(`Período: ${dataInicio} até ${dataFim}`, 14, cursorY);
+    cursorY += 10; // Espaço antes da tabela
+
+    // --- ABA VENDAS ---
+    if (activeTab === "vendas") {
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Relatório de Vendas", 14, cursorY);
+      cursorY += 6; // Espaço pequeno pro header da tabela
+
+      const tableData = historicoVendas.map((venda: any) => [
+        new Date(venda.data_venda).toLocaleDateString("pt-BR"),
+        venda.numero_contrato,
+        venda.nome_vendedor,
+        venda.tipo_venda || "-",
+        formatMoney(venda.valor_total),
+        venda.status,
+      ]);
+
+      autoTable(doc, {
+        startY: cursorY, // Usa a posição dinâmica
+        head: [["Data", "Contrato", "Vendedor", "Tipo", "Valor", "Status"]],
+        body: tableData,
+        theme: "grid",
+        headStyles: { fillColor: [37, 99, 235] },
+        styles: { fontSize: 9 },
+      });
+
+      // Totais
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.text(`Total de Vendas: ${metricas.vendas?.qtd || 0}`, 14, finalY);
+      doc.text(
+        `Faturamento Total: ${formatMoney(metricas.vendas?.total_valor || 0)}`,
+        14,
+        finalY + 6
+      );
+
+      doc.save(`Vendas_${nomeArquivoSafe}_${dataHoje}.pdf`);
+    }
+
+    // --- ABA CONVITES ---
+    else if (activeTab === "convites") {
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      const titulo =
+        modoVisualizacao === "resumido"
+          ? "Relatório de Convites (Consolidado)"
+          : "Relatório de Convites (Detalhado)";
+      doc.text(titulo, 14, cursorY);
+      cursorY += 8; // Prepara para a tabela
+
+      // Cálculos
+      const totalPorVendedor: Record<string, number> = {};
+      const totalGeral = metricas.listaDetalhadaConvites?.length || 0;
+
+      metricas.listaDetalhadaConvites?.forEach((convite: any) => {
+        const vendedor = convite.vendedor || "Indefinido";
+        totalPorVendedor[vendedor] = (totalPorVendedor[vendedor] || 0) + 1;
+      });
+
+      const dadosResumo = Object.entries(totalPorVendedor)
+        .map(([nome, qtd]) => [nome, qtd])
+        .sort((a, b) => (b[1] as number) - (a[1] as number));
+
+      // Título do Ranking
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text("Resumo por Vendedor (Ranking)", 14, cursorY);
+      cursorY += 4; // Ajuste fino
+
+      // Tabela 1: Ranking
+      autoTable(doc, {
+        startY: cursorY,
+        head: [["Vendedor", "Total Entregue"]],
+        body: dadosResumo,
+        theme: "striped",
+        headStyles: { fillColor: [60, 60, 60] },
+        columnStyles: {
+          0: { cellWidth: "auto" },
+          1: { cellWidth: 40, halign: "center", fontStyle: "bold" },
+        },
+        styles: { fontSize: 10 },
+      });
+
+      // Total Geral
+      let currentY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "bold");
+      doc.setDrawColor(220, 220, 220);
+      doc.line(14, currentY - 4, 100, currentY - 4);
+      doc.text(`TOTAL GERAL NO PERÍODO: ${totalGeral}`, 14, currentY + 2);
+
+      // Preparação Tabela 2
+      currentY += 15;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(100);
+      doc.text("Detalhamento do Período", 14, currentY);
+
+      // Dados Tabela 2
+      let head = [];
+      let body = [];
+
+      if (modoVisualizacao === "resumido") {
+        head = [["Data", "Vendedor", "Qtd Entregue"]];
+        body = convitesAgrupados.map((item: any) => [
+          item.dataExibicao,
+          item.vendedor,
+          item.qtd,
+        ]);
+      } else {
+        head = [["Data/Hora", "Vendedor", "Status"]];
+        body =
+          metricas.listaDetalhadaConvites?.map((convite: any) => [
+            new Date(convite.dataCriacao).toLocaleString("pt-BR"),
+            convite.vendedor,
+            "ENTREGUE",
+          ]) || [];
+      }
+
+      // Tabela 2
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: head,
+        body: body,
+        theme: "grid",
+        headStyles: { fillColor: [147, 51, 234] },
+        styles: { fontSize: 9 },
+      });
+
+      doc.save(`Convites_${nomeArquivoSafe}_${dataHoje}.pdf`);
+    }
+  };
   const [modoVisualizacao, setModoVisualizacao] = useState<
     "resumido" | "completo"
   >("resumido");
@@ -87,32 +269,47 @@ export default function AnalyticsPage() {
           </h1>
         </div>
 
-        {/* SELETOR ADMIN */}
-        {user?.role === "ADMIN" && (
-          <div className="relative">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-              <Users size={18} className="text-gray-500" />
-              <select
-                className="bg-transparent font-medium text-blue-600 outline-none cursor-pointer appearance-none pr-6"
-                value={selectedSupervisor}
-                onChange={(e) => setSelectedSupervisor(e.target.value)}
-              >
-                <option value="" disabled>
-                  Selecione um Supervisor
-                </option>
-                {supervisores.map((sup) => (
-                  <option key={sup.id} value={sup.id}>
-                    {sup.nome}
+        {/* LADO DIREITO DO HEADER: BOTÃO + SELETOR */}
+        <div className="flex items-center gap-3">
+          {/* --- AQUI ENTRA O BOTÃO DE EXPORTAR --- */}
+          <button
+            onClick={handleExportPDF}
+            disabled={loading || !metricas}
+            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={16} />{" "}
+            {/* Lembre de importar o Download do lucide-react */}
+            Exportar PDF
+          </button>
+          {/* -------------------------------------- */}
+
+          {/* SELETOR ADMIN (Seu código existente) */}
+          {user?.role === "ADMIN" && (
+            <div className="relative">
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                <Users size={18} className="text-gray-500" />
+                <select
+                  className="bg-transparent font-medium text-blue-600 outline-none cursor-pointer appearance-none pr-6"
+                  value={selectedSupervisor}
+                  onChange={(e) => setSelectedSupervisor(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Selecione um Supervisor
                   </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-4 text-blue-600 pointer-events-none"
-              />
+                  {supervisores.map((sup) => (
+                    <option key={sup.id} value={sup.id}>
+                      {sup.nome}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-4 text-blue-600 pointer-events-none"
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       {/* COMPONENTE DE FILTROS */}
