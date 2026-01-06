@@ -1,3 +1,6 @@
+"use client";
+
+import React, { useMemo } from "react";
 import { Filter, CalendarDays } from "lucide-react";
 
 // 1. ATUALIZAÇÃO DA INTERFACE: Adicionamos as datas opcionais
@@ -26,6 +29,16 @@ export function AnalyticsFilters({
     setFiltros((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  // ✅ ANOS DINÂMICOS: de 2024 até ano atual + 1 (ex.: já inclui 2026)
+  const anos = useMemo(() => {
+    const base = 2024;
+    const anoAtual = new Date().getFullYear();
+    const max = anoAtual + 1; // inclui próximo ano
+    const arr: number[] = [];
+    for (let a = max; a >= base; a--) arr.push(a); // desc
+    return arr;
+  }, []);
+
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col gap-4">
       {/* LINHA 1: FILTROS PRINCIPAIS (Mês/Ano/Vendedor) */}
@@ -51,7 +64,7 @@ export function AnalyticsFilters({
             </select>
           </div>
 
-          {/* ANO */}
+          {/* ANO ✅ (DINÂMICO) */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-gray-400 uppercase">
               Ano
@@ -62,9 +75,11 @@ export function AnalyticsFilters({
               disabled={!!filtros.data_inicial || !!filtros.data_final}
               onChange={(e) => handleChange("ano", Number(e.target.value))}
             >
-              <option value={2024}>2024</option>
-              <option value={2025}>2025</option>
-              <option value={2025}>2026</option>
+              {anos.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
             </select>
           </div>
 
