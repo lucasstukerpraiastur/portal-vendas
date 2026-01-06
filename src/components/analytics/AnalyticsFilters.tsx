@@ -64,6 +64,7 @@ export function AnalyticsFilters({
             >
               <option value={2024}>2024</option>
               <option value={2025}>2025</option>
+              <option value={2025}>2026</option>
             </select>
           </div>
 
